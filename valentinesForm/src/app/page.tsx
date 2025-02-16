@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { Heart } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { useForm, useController, Control, RegisterOptions } from 'react-hook-form';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client (ensure you set these environment variables)
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -21,16 +21,70 @@ type FormData = {
   dealBreakers?: string;
 };
 
+type FormFieldProps = {
+  name: keyof FormData;
+  control: Control<FormData>;
+  label: string;
+  type: 'text' | 'number' | 'email' | 'textarea' | 'select';
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+  rules?: RegisterOptions;
+};
+
+const FormField = ({ name, control, rules = {}, ...props }: FormFieldProps) => {
+  const {
+    field,
+    fieldState: { error }
+  } = useController({
+    name,
+    control,
+    rules
+  });
+
+  return (
+    <div className="space-y-2">
+      <label htmlFor={name} className="block text-sm font-medium text-gray-700">
+        {props.label}
+      </label>
+      {props.type === 'textarea' ? (
+        <textarea
+          id={name}
+          {...field}
+          {...props}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 h-24"
+        />
+      ) : props.type === 'select' ? (
+        <select
+          id={name}
+          {...field}
+          {...props}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+        >
+          {props.options?.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          id={name}
+          {...field}
+          {...props}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+        />
+      )}
+      {error && <span className="text-red-500 text-xs">{error.message}</span>}
+    </div>
+  );
+};
+
 const ValentineForm = () => {
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>();
+  const { control, handleSubmit } = useForm<FormData>();
 
   const onSubmit = async (data: FormData) => {
     console.log('Form data submitted: ', data);
@@ -81,134 +135,93 @@ const ValentineForm = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Name Field */}
-          <div className="space-y-2">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-              Name
-            </label>
-            <input
-              id="name"
-              type="text"
-              placeholder="Your name"
-              {...register('name', { required: 'Name is required' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-            {errors.name && <span className="text-red-500 text-xs">{errors.name.message}</span>}
-          </div>
+          <FormField
+            name="name"
+            control={control}
+            label="Name"
+            type="text"
+            placeholder="Your name"
+            rules={{ required: 'Name is required' }}
+          />
 
-          {/* Age and Gender Fields */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label htmlFor="age" className="block text-sm font-medium text-gray-700">
-                Age
-              </label>
-              <input
-                id="age"
-                type="number"
-                placeholder="Your age"
-                {...register('age', {
-                  required: 'Age is required',
-                  min: { value: 18, message: 'Minimum age is 18' },
-                  max: { value: 120, message: 'Maximum age is 120' },
-                  valueAsNumber: true,
-                })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
-              />
-              {errors.age && <span className="text-red-500 text-xs">{errors.age.message}</span>}
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
-                Gender
-              </label>
-              <select
-                id="gender"
-                {...register('gender', { required: 'Gender is required' })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
-              >
-                <option value="">Select gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="non-binary">Non-binary</option>
-                <option value="other">Other</option>
-              </select>
-              {errors.gender && <span className="text-red-500 text-xs">{errors.gender.message}</span>}
-            </div>
-          </div>
-
-          {/* Email Field */}
-          <div className="space-y-2">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              placeholder="your.email@example.com"
-              {...register('email', {
-                required: 'Email is required',
-                pattern: { value: /^\S+@\S+$/i, message: 'Invalid email address' },
-              })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500"
+            <FormField
+              name="age"
+              control={control}
+              label="Age"
+              type="number"
+              placeholder="Your age"
+              rules={{
+                required: 'Age is required',
+                min: { value: 18, message: 'Minimum age is 18' },
+                max: { value: 120, message: 'Maximum age is 120' },
+                valueAsNumber: true,
+              }}
             />
-            {errors.email && <span className="text-red-500 text-xs">{errors.email.message}</span>}
-          </div>
 
-          {/* Interests Field */}
-          <div className="space-y-2">
-            <label htmlFor="interests" className="block text-sm font-medium text-gray-700">
-              Your Interests
-            </label>
-            <textarea
-              id="interests"
-              placeholder="Tell us about your hobbies and interests..."
-              {...register('interests', { required: 'This field is required' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 h-24"
-            />
-            {errors.interests && <span className="text-red-500 text-xs">{errors.interests.message}</span>}
-          </div>
-
-          {/* Looking For Field */}
-          <div className="space-y-2">
-            <label htmlFor="lookingFor" className="block text-sm font-medium text-gray-700">
-              What You're Looking For
-            </label>
-            <textarea
-              id="lookingFor"
-              placeholder="Describe your ideal match..."
-              {...register('lookingFor', { required: 'This field is required' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 h-24"
-            />
-            {errors.lookingFor && <span className="text-red-500 text-xs">{errors.lookingFor.message}</span>}
-          </div>
-
-          {/* Ideal Date Field (Optional) */}
-          <div className="space-y-2">
-            <label htmlFor="idealDate" className="block text-sm font-medium text-gray-700">
-              Ideal First Date
-            </label>
-            <textarea
-              id="idealDate"
-              placeholder="Describe your perfect first date..."
-              {...register('idealDate')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 h-24"
+            <FormField
+              name="gender"
+              control={control}
+              label="Gender"
+              type="select"
+              placeholder="Select gender"
+              options={[
+                { value: '', label: 'Select gender' },
+                { value: 'male', label: 'Male' },
+                { value: 'female', label: 'Female' },
+                { value: 'non-binary', label: 'Non-binary' },
+                { value: 'other', label: 'Other' },
+              ]}
+              rules={{ required: 'Gender is required' }}
             />
           </div>
 
-          {/* Deal Breakers Field (Optional) */}
-          <div className="space-y-2">
-            <label htmlFor="dealBreakers" className="block text-sm font-medium text-gray-700">
-              Deal Breakers
-            </label>
-            <textarea
-              id="dealBreakers"
-              placeholder="Any absolute deal breakers?"
-              {...register('dealBreakers')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 h-24"
-            />
-          </div>
+          <FormField
+            name="email"
+            control={control}
+            label="Email"
+            type="email"
+            placeholder="your.email@example.com"
+            rules={{
+              required: 'Email is required',
+              pattern: { value: /^\S+@\S+$/i, message: 'Invalid email address' },
+            }}
+          />
 
-          {/* Submit Button */}
+          <FormField
+            name="interests"
+            control={control}
+            label="Your Interests"
+            type="textarea"
+            placeholder="Tell us about your hobbies and interests..."
+            rules={{ required: 'This field is required' }}
+          />
+
+          <FormField
+            name="lookingFor"
+            control={control}
+            label="What You're Looking For"
+            type="textarea"
+            placeholder="Describe your ideal match..."
+            rules={{ required: 'This field is required' }}
+          />
+
+          <FormField
+            name="idealDate"
+            control={control}
+            label="Ideal First Date"
+            type="textarea"
+            placeholder="Describe your perfect first date..."
+          />
+
+          <FormField
+            name="dealBreakers"
+            control={control}
+            label="Deal Breakers"
+            type="textarea"
+            placeholder="Any absolute deal breakers?"
+          />
+
           <button 
             type="submit"
             disabled={isLoading}
